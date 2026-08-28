@@ -1,6 +1,12 @@
 import { ProductCard, type ProductCardData } from "@/components/products/product-card";
 
-export function ProductGrid({ products }: { products: ProductCardData[] }) {
+export function ProductGrid({
+  products,
+  showOwnerControls = false,
+}: {
+  products: ProductCardData[];
+  showOwnerControls?: boolean;
+}) {
   if (products.length === 0) {
     return (
       <p className="py-12 text-center text-sm text-muted-foreground">
@@ -12,7 +18,7 @@ export function ProductGrid({ products }: { products: ProductCardData[] }) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {products.map((product) => (
-        <ProductCard key={product.slug} product={product} />
+        <ProductCard key={product.slug} product={product} showOwnerControls={showOwnerControls} />
       ))}
     </div>
   );

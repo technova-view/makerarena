@@ -4,9 +4,11 @@ import { Eye, Trophy } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DivisionBadge } from "@/components/products/division-badge";
+import { ArchiveProductButton } from "@/components/products/archive-product-button";
 import type { DivisionTier } from "@/lib/types/database.types";
 
 export interface ProductCardData {
+  id: string;
   slug: string;
   name: string;
   tagline: string | null;
@@ -15,12 +17,22 @@ export interface ProductCardData {
   views: number;
   category_slug: string;
   division?: DivisionTier | null;
+  status?: "draft" | "published" | "archived";
 }
 
-export function ProductCard({ product }: { product: ProductCardData }) {
+// showOwnerControls: only true on the maker's own profile, where drafts and
+// archived products are visible too (see 0003_rls_policies.sql - owners can
+// see/write all of their own products, not just published ones).
+export function ProductCard({
+  product,
+  showOwnerControls = false,
+}: {
+  product: ProductCardData;
+  showOwnerControls?: boolean;
+}) {
   return (
-    <Link href={`/products/${product.slug}`}>
-      <Card className="flex h-full flex-col gap-3 p-4 transition-colors hover:border-primary">
+    <Card className="flex h-full flex-col gap-3 p-4 transition-colors hover:border-primary">
+      <Link href={`/products/${product.slug}`} className="flex flex-1 flex-col gap-3">
         <div className="flex items-center gap-3">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted">
             {product.logo_url ? (
@@ -61,7 +73,16 @@ export function ProductCard({ product }: { product: ProductCardData }) {
             {product.views.toLocaleString()}
           </span>
         </div>
-      </Card>
-    </Link>
+      </Link>
+
+      {showOwnerControls && product.status && product.status !== "published" && (
+        <Badge variant="outline" className="self-start capitalize">
+          {product.status}
+        </Badge>
+      )}
+      {showOwnerControls && product.status === "published" && (
+        <ArchiveProductButton productId={product.id} productName={product.name} />
+      )}
+    </Card>
   );
 }

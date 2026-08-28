@@ -28,7 +28,7 @@ export default async function MakerProfilePage({
 
   let productsQuery = supabase
     .from("products")
-    .select("id, slug, name, tagline, logo_url, rating, views, category_slug")
+    .select("id, slug, name, tagline, logo_url, rating, views, category_slug, status")
     .eq("maker_id", maker.id)
     .order("rating", { ascending: false });
 
@@ -165,7 +165,7 @@ export default async function MakerProfilePage({
       )}
 
       <h2 className="mb-4 mt-8 text-lg font-semibold">Products</h2>
-      <ProductGrid products={productsWithDivision} />
+      <ProductGrid products={productsWithDivision} showOwnerControls={isOwnProfile} />
     </div>
   );
 }

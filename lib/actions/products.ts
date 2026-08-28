@@ -106,3 +106,58 @@ export async function createProduct(
   if (maker) revalidatePath(`/makers/${maker.username}`);
   redirect(`/products/${slug}`);
 }
+
+export type ArchiveActionState = { error: string | null };
+
+// No delete policy on products (see 0003_rls_policies.sql) - votes,
+// season_results, and maker_achievements all reference product_id with no
+// ON DELETE cascade, so a real DELETE would either be rejected outright
+// (FK violation) once a product has battle history, or silently corrupt
+// opponents' win/loss records if it weren't. Archiving is the only
+// supported way for a maker to retire a product.
+export async function archiveProduct(
+  _prevState: ArchiveActionState,
+  formData: FormData,
+): Promise<ArchiveActionState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be signed in to archive a product." };
+  }
+
+  const productId = formData.get("product_id");
+  if (typeof productId !== "string" || !productId) {
+    return { error: "Invalid product." };
+  }
+
+  // maker_id filter is redundant with the "maker can update own product" RLS
+  // policy, but kept explicit so a mismatched id fails as a clean "not
+  // found" .single() error rather than relying solely on RLS to no-op it.
+  const { data: updated, error } = await supabase
+    .from("products")
+    .update({ status: "archived" })
+    .eq("id", productId)
+    .eq("maker_id", user.id)
+    .select("slug, category_slug")
+    .single();
+
+  if (error || !updated) {
+    return { error: error?.message ?? "Could not archive product." };
+  }
+
+  const { data: maker } = await supabase
+    .from("makers")
+    .select("username")
+    .eq("id", user.id)
+    .single();
+
+  revalidatePath(`/products/${updated.slug}`);
+  revalidatePath(`/categories/${updated.category_slug}`);
+  revalidatePath("/");
+  if (maker) revalidatePath(`/makers/${maker.username}`);
+
+  redirect(maker ? `/makers/${maker.username}` : "/");
+}

@@ -19,13 +19,17 @@ export default async function ProductPage({
   const { slug } = await params;
   const supabase = await createClient();
 
+  // No status filter here - "published products are public" RLS already
+  // restricts non-owners to published rows, while letting the owner load
+  // their own draft/archived product (e.g. after archiving it from their
+  // profile - see app/makers/[username]/page.tsx, which is where the
+  // archive control itself lives).
   const { data: product } = await supabase
     .from("products")
     .select(
       "id, name, tagline, description, website_url, logo_url, screenshots, rating, views, battles_count, category_slug, makers(username, display_name, avatar_url)",
     )
     .eq("slug", slug)
-    .eq("status", "published")
     .single();
 
   if (!product) notFound();
