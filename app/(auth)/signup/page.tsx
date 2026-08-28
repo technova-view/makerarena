@@ -15,7 +15,7 @@ export default async function SignupPage({
       <p className="mb-6 text-sm text-muted-foreground">
         Publish what you&apos;ve built and start climbing the leaderboard.
       </p>
-      <AuthForm action={signUpAction} submitLabel="Sign up" next={next ?? "/"} />
+      <AuthForm action={signUpAction} submitLabel="Sign up" next={next ?? "/"} mode="signup" />
       <p className="mt-4 text-center text-sm text-muted-foreground">
         Already have an account?{" "}
         <Link href="/login" className="text-primary hover:underline">

@@ -43,9 +43,9 @@ export function LeaderboardTable({ rows }: { rows: LeaderboardRow[] }) {
                   {row.name}
                 </Link>
               </td>
-              <td className="px-4 py-3 text-muted-foreground">
+              <td className="max-w-40 px-4 py-3 text-muted-foreground sm:max-w-xs">
                 {row.maker_username ? (
-                  <Link href={`/makers/${row.maker_username}`} className="hover:text-foreground">
+                  <Link href={`/makers/${row.maker_username}`} className="block truncate hover:text-foreground">
                     @{row.maker_username}
                   </Link>
                 ) : (

@@ -45,7 +45,7 @@ export function MakerLeaderboardTable({ rows }: { rows: MakerLeaderboardRow[] })
             <tr key={row.username} className="border-t border-border">
               <td className="px-4 py-3 font-medium text-muted-foreground">{row.rankPosition}</td>
               <td className="px-4 py-3">
-                <Link href={`/makers/${row.username}`} className="flex items-center gap-2 font-medium hover:text-primary">
+                <Link href={`/makers/${row.username}`} className="flex min-w-0 items-center gap-2 font-medium hover:text-primary">
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
                     {row.avatarUrl ? (
                       <Image src={row.avatarUrl} alt={row.displayName} width={32} height={32} className="h-full w-full object-cover" />
@@ -55,7 +55,7 @@ export function MakerLeaderboardTable({ rows }: { rows: MakerLeaderboardRow[] })
                       </span>
                     )}
                   </span>
-                  <span>
+                  <span className="min-w-0 max-w-40 truncate sm:max-w-xs">
                     {row.displayName}{" "}
                     <span className="font-normal text-muted-foreground">@{row.username}</span>
                   </span>

@@ -134,9 +134,9 @@ export default async function MakerProfilePage({
             </span>
           )}
         </div>
-        <div>
-          <h1 className="text-2xl font-bold">{maker.display_name}</h1>
-          <p className="text-muted-foreground">@{maker.username}</p>
+        <div className="min-w-0">
+          <h1 className="truncate text-2xl font-bold">{maker.display_name}</h1>
+          <p className="truncate text-muted-foreground">@{maker.username}</p>
         </div>
       </div>
 
