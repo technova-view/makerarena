@@ -4,10 +4,24 @@
 
 export type ProductStatus = "draft" | "published" | "archived";
 export type SubscriptionPlan = "free" | "pro";
-export type SubscriptionStatus = "inactive" | "active" | "canceled" | "past_due";
+// 0013_billing_foundation.sql - confirmed directly from @polar-sh/sdk's
+// real SubscriptionStatus type. No "revoked" value - that's an event name
+// (subscription.revoked), not a resting status - see that migration's
+// comments on apply_subscription_event.
+export type SubscriptionStatus =
+  | "incomplete"
+  | "incomplete_expired"
+  | "trialing"
+  | "active"
+  | "past_due"
+  | "canceled"
+  | "unpaid"
+  | "paused";
 export type PaymentStatus = "pending" | "succeeded" | "failed" | "refunded";
-export type FeaturedPlacement = "home" | "category" | "arena";
-export type FeaturedStatus = "pending" | "active" | "ended" | "canceled";
+// FeaturedPlacement/FeaturedStatus removed in 0013 - featured_campaigns is
+// dropped and deliberately not recreated until Phase 3D (promotion
+// checkout, pending Polar's written confirmation it's acceptable).
+export type EntitlementType = "pro_access" | "featured_credit";
 export type SeasonStatus = "upcoming" | "active" | "ended";
 export type DivisionTier = "elite" | "diamond" | "gold" | "silver" | "bronze";
 export type AchievementCategory = "competitive" | "rating" | "product" | "season";
@@ -126,36 +140,54 @@ export interface Database {
           },
         ];
       };
+      // 0013_billing_foundation.sql replaced the original placeholder
+      // subscriptions/payments/featured_campaigns tables outright (nothing
+      // in the app referenced their old shape). featured_campaigns is
+      // dropped and deliberately not recreated until Phase 3D.
+      webhook_events: {
+        Row: {
+          id: string;
+          provider_event_id: string;
+          event_type: string;
+          payload: Record<string, unknown>;
+          received_at: string;
+          processed_at: string | null;
+        };
+        // The webhook route handler is the only caller (createAdminClient,
+        // service_role) - but unlike subscriptions/payments/entitlements
+        // below, it calls .insert()/.update() on THIS table directly (it
+        // has to, to establish the idempotency gate before any SQL
+        // function can run), so real shapes are required here, not never.
+        Insert: {
+          provider_event_id: string;
+          event_type: string;
+          payload: Record<string, unknown>;
+          received_at?: string;
+          processed_at?: string | null;
+        };
+        Update: Partial<{ processed_at: string | null }>;
+        Relationships: [];
+      };
       subscriptions: {
         Row: {
           id: string;
           maker_id: string;
+          provider_subscription_id: string;
+          provider_customer_id: string;
           plan: SubscriptionPlan;
           status: SubscriptionStatus;
-          provider: string | null;
-          provider_customer_id: string | null;
-          provider_subscription_id: string | null;
+          current_period_start: string | null;
           current_period_end: string | null;
+          cancel_at_period_end: boolean;
           created_at: string;
           updated_at: string;
         };
-        Insert: {
-          maker_id: string;
-          plan?: SubscriptionPlan;
-          status?: SubscriptionStatus;
-          provider?: string | null;
-          provider_customer_id?: string | null;
-          provider_subscription_id?: string | null;
-          current_period_end?: string | null;
-        };
-        Update: Partial<{
-          plan: SubscriptionPlan;
-          status: SubscriptionStatus;
-          provider: string | null;
-          provider_customer_id: string | null;
-          provider_subscription_id: string | null;
-          current_period_end: string | null;
-        }>;
+        // No app code inserts/updates subscriptions directly - the only
+        // write path is apply_subscription_event() via .rpc(), called from
+        // the webhook route handler using createAdminClient() (service-
+        // role, bypasses RLS).
+        Insert: never;
+        Update: never;
         Relationships: [
           {
             foreignKeyName: "subscriptions_maker_id_fkey";
@@ -171,30 +203,16 @@ export interface Database {
           id: string;
           maker_id: string;
           subscription_id: string | null;
+          webhook_event_id: string;
+          provider_payment_id: string;
           amount_cents: number;
           currency: string;
-          provider: string | null;
-          provider_payment_id: string | null;
           status: PaymentStatus;
           created_at: string;
         };
-        Insert: {
-          maker_id: string;
-          subscription_id?: string | null;
-          amount_cents: number;
-          currency?: string;
-          provider?: string | null;
-          provider_payment_id?: string | null;
-          status?: PaymentStatus;
-        };
-        Update: Partial<{
-          subscription_id: string | null;
-          amount_cents: number;
-          currency: string;
-          provider: string | null;
-          provider_payment_id: string | null;
-          status: PaymentStatus;
-        }>;
+        // Only write path is apply_order_paid() via .rpc().
+        Insert: never;
+        Update: never;
         Relationships: [
           {
             foreignKeyName: "payments_maker_id_fkey";
@@ -210,37 +228,45 @@ export interface Database {
             referencedRelation: "subscriptions";
             referencedColumns: ["id"];
           },
+          {
+            foreignKeyName: "payments_webhook_event_id_fkey";
+            columns: ["webhook_event_id"];
+            isOneToOne: false;
+            referencedRelation: "webhook_events";
+            referencedColumns: ["id"];
+          },
         ];
       };
-      featured_campaigns: {
+      entitlements: {
         Row: {
           id: string;
-          product_id: string;
-          placement: FeaturedPlacement;
-          starts_at: string;
-          ends_at: string;
-          status: FeaturedStatus;
-          created_at: string;
+          maker_id: string;
+          type: EntitlementType;
+          subscription_id: string | null;
+          granted_at: string;
+          effective_at: string;
+          expires_at: string | null;
+          consumed_at: string | null;
+          metadata: Record<string, unknown>;
         };
-        Insert: {
-          product_id: string;
-          placement?: FeaturedPlacement;
-          starts_at: string;
-          ends_at: string;
-          status?: FeaturedStatus;
-        };
-        Update: Partial<{
-          placement: FeaturedPlacement;
-          starts_at: string;
-          ends_at: string;
-          status: FeaturedStatus;
-        }>;
+        // Only write path is apply_subscription_event() / apply_order_paid()
+        // via .rpc(). consumed_at is set (later, by a 3D feature) through a
+        // still-privileged path, not client-writable now either way.
+        Insert: never;
+        Update: never;
         Relationships: [
           {
-            foreignKeyName: "featured_campaigns_product_id_fkey";
-            columns: ["product_id"];
+            foreignKeyName: "entitlements_maker_id_fkey";
+            columns: ["maker_id"];
             isOneToOne: false;
-            referencedRelation: "products";
+            referencedRelation: "makers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "entitlements_subscription_id_fkey";
+            columns: ["subscription_id"];
+            isOneToOne: false;
+            referencedRelation: "subscriptions";
             referencedColumns: ["id"];
           },
         ];
@@ -522,6 +548,32 @@ export interface Database {
           score: number;
           population: number;
         }[];
+      };
+      apply_subscription_event: {
+        Args: {
+          p_maker_id: string;
+          p_provider_subscription_id: string;
+          p_provider_customer_id: string;
+          p_plan: string;
+          p_status: string;
+          p_current_period_start: string | null;
+          p_current_period_end: string | null;
+          p_cancel_at_period_end: boolean;
+        };
+        Returns: string;
+      };
+      apply_order_paid: {
+        Args: {
+          p_maker_id: string;
+          p_subscription_id: string | null;
+          p_provider_payment_id: string;
+          p_amount_cents: number;
+          p_currency: string;
+          p_webhook_event_id: string;
+          p_period_start: string | null;
+          p_period_end: string | null;
+        };
+        Returns: string | null;
       };
     };
   };
