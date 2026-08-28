@@ -73,3 +73,20 @@ values (1, 'Season 1', 'active', now(), now() + interval '1 month');
 This is exactly `0008_seasons.sql`'s original bootstrap statement — safe to re-run once, right before launch, once no further pre-launch testing will touch seasons/votes.
 
 **Status:** open, deliberately deferred (not a bug — see reasoning above).
+
+### PL-002 — Clear sandbox-origin billing data before going live
+
+Live-verifying Phase 3D's checkout flow (`startProCheckout` → Polar sandbox checkout → webhook → `subscriptions`/`payments`/`entitlements`) required actually completing a real sandbox purchase, using a real maker account (`waliur_0fb383`, `maker_id 0fb383c3-...`) rather than a throwaway test user, since Stripe Elements + hCaptcha inside Polar's real checkout page can't be driven by an automated browser. No real money moved (separate sandbox Polar org), but it produced real rows in the one real Supabase database: 1 `subscriptions` row, 1 `payments` row, 2 `entitlements` rows (`pro_access` + `featured_credit`), plus 4 `webhook_events` audit rows.
+
+Same reasoning as PL-001: don't clean up now — more Phase 3D/3E testing (refunds, cancellation, renewal) will just produce more sandbox-origin rows before launch. Since no real Polar production customer exists yet, every row in these tables at this stage is test-origin by construction, so a full wipe (not a filtered one) is the correct and simplest reset.
+
+**Reset, as the last step before going live** (after production webhook credentials are confirmed live and no further sandbox testing will happen):
+```sql
+delete from public.entitlements;
+delete from public.payments;
+delete from public.subscriptions;
+delete from public.webhook_events;
+```
+No re-seed needed afterward (unlike PL-001's seasons bootstrap) — these tables start empty and populate themselves from real webhook deliveries once real customers pay.
+
+**Status:** open, deliberately deferred (not a bug — see reasoning above).

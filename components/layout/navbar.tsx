@@ -39,6 +39,9 @@ export async function Navbar() {
           <Link href="/makers" className="hidden text-muted-foreground hover:text-foreground sm:inline">
             Top Makers
           </Link>
+          <Link href="/pricing" className="hidden text-muted-foreground hover:text-foreground sm:inline">
+            Pricing
+          </Link>
 
           {user ? (
             <>

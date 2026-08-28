@@ -39,7 +39,11 @@ export async function startProCheckout(
     const checkout = await createPolarClient().checkouts.create({
       products: [productId],
       externalCustomerId: user.id,
-      customerEmail: user.email,
+      // No customerEmail prefill: Polar validates the domain has real MX
+      // records at checkout-creation time (not just at payment time), so a
+      // pre-fill failure here would fail the whole checkout for a reason
+      // outside our control. Polar's own checkout page collects it from
+      // whoever actually completes payment instead.
       successUrl: `${siteUrl}/settings/billing?checkout_id={CHECKOUT_ID}`,
     });
     checkoutUrl = checkout.url;
