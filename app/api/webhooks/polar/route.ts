@@ -153,6 +153,30 @@ export async function POST(request: Request) {
         // webhook_events row above is this event's entire audit trail.
         break;
 
+      case "order.refunded": {
+        const order = event.data;
+        const { data: refundedPaymentId, error } = await admin.rpc("apply_order_refunded", {
+          p_provider_payment_id: order.id,
+        });
+        if (error) throw error;
+
+        // NULL means no local payments row for this order at all - most
+        // plausibly order.refunded arriving before order.paid ever landed
+        // for it (shouldn't happen for a genuinely paid-then-refunded
+        // order, but fail loud and let Polar's retry give a possible
+        // ordering race time to resolve, same posture as order.paid's own
+        // subscription-row race above).
+        if (!refundedPaymentId) {
+          console.error("polar webhook: no local payment for order.refunded", order.id);
+          return NextResponse.json({ error: "payment not found" }, { status: 500 });
+        }
+
+        // Deliberately no entitlement mutation here - see 0016's migration
+        // comment and TD-002 in TECH_DEBT.md. A refund is recorded, not
+        // auto-acted-on.
+        break;
+      }
+
       default:
         // customer.*, benefit.*, checkout.*, product.*, etc.: logged via
         // webhook_events only, no action taken this pass.

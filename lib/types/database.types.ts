@@ -575,6 +575,12 @@ export interface Database {
         };
         Returns: string | null;
       };
+      apply_order_refunded: {
+        Args: {
+          p_provider_payment_id: string;
+        };
+        Returns: string | null;
+      };
     };
   };
 }
