@@ -80,8 +80,18 @@ export function ProductCard({
           {product.status}
         </Badge>
       )}
-      {showOwnerControls && product.status === "published" && (
-        <ArchiveProductButton productId={product.id} productName={product.name} />
+      {showOwnerControls && (
+        <div className="flex items-center gap-3">
+          <Link
+            href={`/products/${product.slug}/analytics`}
+            className="text-sm text-muted-foreground hover:text-foreground"
+          >
+            Analytics
+          </Link>
+          {product.status === "published" && (
+            <ArchiveProductButton productId={product.id} productName={product.name} />
+          )}
+        </div>
       )}
     </Card>
   );

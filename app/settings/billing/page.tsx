@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getProAccess } from "@/lib/entitlements";
+import { getProAccess, getProductSlotLimit } from "@/lib/entitlements";
 import { UpgradeButton } from "@/components/billing/upgrade-button";
 import { Badge } from "@/components/ui/badge";
 
@@ -17,7 +17,15 @@ export default async function BillingSettingsPage() {
   // webhook may not have landed yet, so this can correctly still say "Free"
   // for a few seconds after a successful payment - that's the stored state
   // at read time, not an assumption about what the checkout redirect implies.
-  const pro = await getProAccess(supabase, user.id);
+  const [pro, { count: productsUsed }, productSlotLimit] = await Promise.all([
+    getProAccess(supabase, user.id),
+    supabase
+      .from("products")
+      .select("id", { count: "exact", head: true })
+      .eq("maker_id", user.id)
+      .in("status", ["draft", "published"]),
+    getProductSlotLimit(supabase, user.id),
+  ]);
 
   return (
     <div className="mx-auto max-w-xl px-4 py-10">
@@ -39,6 +47,9 @@ export default async function BillingSettingsPage() {
           </div>
           {!pro.active && <UpgradeButton />}
         </div>
+        <p className="mt-4 border-t border-border pt-4 text-sm text-muted-foreground">
+          {productsUsed ?? 0} of {productSlotLimit} product slots used
+        </p>
       </div>
 
       <p className="mt-4 text-xs text-muted-foreground">

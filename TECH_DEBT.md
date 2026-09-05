@@ -97,6 +97,14 @@ One real finding from this pass, since fixed in the verification script itself (
 
 **Status:** resolved — `0017_product_slots.sql` is live, verified, and `scripts/dev-verify-product-slots.js` is committed for future re-verification.
 
+#### Found after shipping (2026-09-05): missing backfill for pre-existing active subscriptions
+
+The 22-check live pass above only ever tested *freshly granted* subscriptions (created via `apply_subscription_event` after 0017 already existed), so it never exercised the one case that actually broke: `waliur_0fb383`'s real Pro subscription (active since 2026-08-28, well before 0017 shipped) had a `pro_access` entitlement but no `product_slots` row — `apply_subscription_event` only grants on a *new* webhook event, and none had fired for that subscription since. `current_product_slot_limit()` correctly fell back to the free-tier default (1) per its own logic; the gap was that 0017 changed what a *new* event grants without backfilling subscriptions already active under the old logic. Surfaced by the user screenshotting their own real billing page showing "1 of 1" while Pro and Active.
+
+Fixed in `0018_backfill_product_slots.sql`: inserts a matching `product_slots` (value 3) row for every `pro_access` row that doesn't already have one on the same `subscription_id` + `effective_at`, idempotent via `NOT EXISTS`. Applied live and confirmed: `waliur_0fb383` now correctly resolves to limit 3.
+
+**Lesson for next time:** a migration that changes what a *future* event grants needs an explicit backfill pass for state that predates it — live-verifying only the "grant a brand new thing" path isn't sufficient when the schema change also affects already-existing rows.
+
 **Reset, as the last step before going live** (after production webhook credentials are confirmed live and no further sandbox testing will happen):
 ```sql
 delete from public.entitlements;
