@@ -178,6 +178,15 @@ grant execute on function public.current_product_slot_limit(uuid) to anon, authe
 -- there is no supported draft -> published transition path today (products
 -- are only ever inserted as 'published' - see lib/actions/products.ts) that
 -- would need a second check after the row already exists.
+--
+-- FRAGILE INVARIANT, read before adding any UPDATE-based status change:
+-- this INSERT-only trigger silently does NOT re-check the limit on UPDATE.
+-- That's safe only as long as every status transition either frees a slot
+-- (-> archived) or doesn't change consumption. The moment anyone adds an
+-- "unarchive"/restore action (status: archived -> draft/published), it will
+-- bypass this limit entirely with no check at all - that new action would
+-- need either its own limit check, or this trigger extended to `before
+-- update ... when (old.status = 'archived' and new.status <> 'archived')`.
 -- ============================================================
 --
 -- pg_advisory_xact_lock, keyed per maker_id, is what makes this race-safe
