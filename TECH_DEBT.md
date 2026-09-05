@@ -115,3 +115,19 @@ delete from public.webhook_events;
 No re-seed needed afterward (unlike PL-001's seasons bootstrap) — these tables start empty and populate themselves from real webhook deliveries once real customers pay.
 
 **Status:** open, deliberately deferred (not a bug — see reasoning above).
+
+---
+
+## Phase 3A's third Pro perk — profile customization (2026-09-05)
+
+Pro was always advertised as "analytics, profile customization, and product slots" (`app/pricing/page.tsx`), but until now `/settings/profile` was identical for Free and Pro — a real gap between what was sold and what shipped, caught only by checking the actual page rather than trusting the pricing copy.
+
+**Shipped:** `0019_maker_banner.sql` adds `makers.banner_url` (reuses the existing `avatars` storage bucket — no new bucket/RLS needed, see the migration's own comment). Gating lives in `updateMakerProfile()` (`lib/actions/makers.ts`), re-checking `getProAccess()` server-side same as every other Pro-gated write in this app:
+- Bio limit: 300 chars (Free) / 1000 chars (Pro) — `lib/validations/maker.ts`'s `makerProfileSchema()` takes the limit as a parameter, never a static number.
+- Banner: Free makers get an upsell block instead of the uploader in `ProfileForm`; the update itself omits `banner_url` from the write entirely when the maker isn't Pro (not set to null) — a maker who set one while Pro and later lapses keeps it, same no-retroactive-punishment rule the product-slot limit already follows.
+
+**Live-verified**, with two false alarms worth recording so they aren't re-chased next time:
+1. First verification pass used `https://placehold.co/900x300.png` as a test banner URL. `next/image` correctly refused it (only the real Supabase storage hostname is in `next.config.ts`'s `remotePatterns`) and rendered Next's error overlay — which happens to embed the failing URL in its own error text, so a naive `body.includes(url)` check reported a false "it rendered!" Fixed by actually uploading a real 1x1 PNG to the `avatars` bucket and checking for a real `<img src=...>` tag instead of a raw string match.
+2. A short (4s) Pro grant period, combined with a slower setup sequence (a real image upload + several sequential hosted-Supabase round trips) in one test run, meant the grant had already expired by the time the "while still Pro" assertions ran - looked like a gating bug, was actually just too little margin between grant and check for that particular test's own latency. A longer grant period (60s) for the "still active" assertions, with a separate short-period grant for the genuine-expiry assertion, gave a clean, unambiguous result: real banner image renders correctly for a Pro maker (confirmed via actual `<img>` tag, real Supabase-hosted file), and correctly survives a real, elapsed downgrade (grandfathered, not retroactively removed) while the bio limit and upsell UI correctly flip back to Free.
+
+**Status:** resolved and shipped — `0019_maker_banner.sql` applied to the real database, `lib/actions/makers.ts`/`ProfileForm`/`makers.[username]` page all updated, cleaned up after every verification run.

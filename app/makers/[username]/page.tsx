@@ -15,7 +15,7 @@ export default async function MakerProfilePage({
 
   const { data: maker } = await supabase
     .from("makers")
-    .select("id, username, display_name, avatar_url, bio, website_url")
+    .select("id, username, display_name, avatar_url, banner_url, bio, website_url")
     .eq("username", username)
     .single();
 
@@ -118,6 +118,11 @@ export default async function MakerProfilePage({
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
+      {maker.banner_url && (
+        <div className="relative mb-4 aspect-3/1 w-full overflow-hidden rounded-xl bg-muted">
+          <Image src={maker.banner_url} alt="" fill className="object-cover" sizes="(min-width: 768px) 768px, 100vw" />
+        </div>
+      )}
       <div className="flex items-center gap-4">
         <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
           {maker.avatar_url ? (

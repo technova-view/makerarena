@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getProAccess } from "@/lib/entitlements";
 import { ProfileForm } from "@/components/profile-form";
 
 export default async function ProfileSettingsPage() {
@@ -10,11 +11,14 @@ export default async function ProfileSettingsPage() {
 
   if (!user) redirect("/login?next=/settings/profile");
 
-  const { data: maker } = await supabase
-    .from("makers")
-    .select("username, display_name, avatar_url, bio, website_url")
-    .eq("id", user.id)
-    .single();
+  const [{ data: maker }, pro] = await Promise.all([
+    supabase
+      .from("makers")
+      .select("username, display_name, avatar_url, banner_url, bio, website_url")
+      .eq("id", user.id)
+      .single(),
+    getProAccess(supabase, user.id),
+  ]);
 
   if (!maker) redirect("/");
 
@@ -24,7 +28,7 @@ export default async function ProfileSettingsPage() {
       <p className="mb-6 text-sm text-muted-foreground">
         This is your public maker profile.
       </p>
-      <ProfileForm maker={maker} />
+      <ProfileForm maker={maker} isPro={pro.active} />
     </div>
   );
 }

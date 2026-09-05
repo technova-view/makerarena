@@ -1,0 +1,17 @@
+-- Phase 3A's third Pro perk, "profile customization" (alongside product
+-- slots and analytics - see 0017/0018 and lib/analytics.ts), had no actual
+-- implementation until now: /settings/profile was identical for Free and
+-- Pro. This migration only adds storage; gating (Pro-only banner, longer
+-- bio for Pro) lives in updateMakerProfile() (lib/actions/makers.ts),
+-- re-checking entitlements server-side same as every other Pro-gated write
+-- in this app - never trusted from client input.
+--
+-- No new storage bucket needed: banners reuse the existing 'avatars' bucket
+-- (0006_storage_buckets.sql) - its policy is keyed by folder = auth.uid(),
+-- not filename, and ImageUploader always names uploads with a random uuid,
+-- so a banner and an avatar in the same maker's folder can't collide.
+--
+-- No RLS change needed either: makers' existing "user can update own maker
+-- row" policy (0003_rls_policies.sql) is row-scoped (auth.uid() = id), not
+-- column-scoped, so it already covers this new column.
+alter table public.makers add column banner_url text;
