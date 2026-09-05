@@ -21,7 +21,7 @@ export type PaymentStatus = "pending" | "succeeded" | "failed" | "refunded";
 // FeaturedPlacement/FeaturedStatus removed in 0013 - featured_campaigns is
 // dropped and deliberately not recreated until Phase 3D (promotion
 // checkout, pending Polar's written confirmation it's acceptable).
-export type EntitlementType = "pro_access" | "featured_credit";
+export type EntitlementType = "pro_access" | "product_slots";
 export type SeasonStatus = "upcoming" | "active" | "ended";
 export type DivisionTier = "elite" | "diamond" | "gold" | "silver" | "bronze";
 export type AchievementCategory = "competitive" | "rating" | "product" | "season";
@@ -242,6 +242,7 @@ export interface Database {
           id: string;
           maker_id: string;
           type: EntitlementType;
+          value: number | null;
           subscription_id: string | null;
           granted_at: string;
           effective_at: string;
@@ -570,8 +571,6 @@ export interface Database {
           p_amount_cents: number;
           p_currency: string;
           p_webhook_event_id: string;
-          p_period_start: string | null;
-          p_period_end: string | null;
         };
         Returns: string | null;
       };
@@ -580,6 +579,12 @@ export interface Database {
           p_provider_payment_id: string;
         };
         Returns: string | null;
+      };
+      current_product_slot_limit: {
+        Args: {
+          p_maker_id: string;
+        };
+        Returns: number;
       };
     };
   };

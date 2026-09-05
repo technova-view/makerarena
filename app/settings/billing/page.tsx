@@ -34,7 +34,7 @@ export default async function BillingSettingsPage() {
             <p className="mt-1 text-sm text-muted-foreground">
               {pro.active
                 ? `Renews ${pro.expiresAt ? new Date(pro.expiresAt).toLocaleDateString() : "automatically"}`
-                : "$12/month — analytics, profile customization, and 1 Featured credit/month"}
+                : "$12/month — up to 3 published products, advanced analytics, and profile customization"}
             </p>
           </div>
           {!pro.active && <UpgradeButton />}

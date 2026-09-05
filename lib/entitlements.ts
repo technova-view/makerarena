@@ -28,3 +28,15 @@ export async function getProAccess(
 
   return { active: Boolean(data), expiresAt: data?.expires_at ?? null };
 }
+
+// Mirrors current_product_slot_limit() in 0017_product_slots.sql - the
+// authoritative check lives there (enforced by products' insert trigger,
+// race-safe against concurrent submissions); this is for UI reads only
+// (pricing copy, "X of Y slots used"), never itself a gate.
+export async function getProductSlotLimit(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  makerId: string,
+): Promise<number> {
+  const { data } = await supabase.rpc("current_product_slot_limit", { p_maker_id: makerId });
+  return data ?? 1;
+}

@@ -80,6 +80,23 @@ Live-verifying Phase 3D's checkout flow (`startProCheckout` → Polar sandbox ch
 
 Same reasoning as PL-001: don't clean up now — more Phase 3D/3E testing (refunds, cancellation, renewal) will just produce more sandbox-origin rows before launch. Since no real Polar production customer exists yet, every row in these tables at this stage is test-origin by construction, so a full wipe (not a filtered one) is the correct and simplest reset.
 
+**Update (2026-09-05):** the `featured_credit` entitlement row mentioned above no longer exists — Polar rejected paid Featured placement in every form it was asked about (standalone, bidding, and this bundled-subscription-perk form), so `0017_product_slots.sql` deleted every `featured_credit` row and dropped the type from the schema entirely. Pro's replacement perk is `product_slots` (value 3). The `subscriptions`/`payments`/`webhook_events` rows from that same sandbox test are unaffected and still covered by the reset below.
+
+#### Verification (live, 2026-09-05): `0017_product_slots.sql`
+
+Applied to the real Supabase project and live-verified end-to-end via `scripts/dev-verify-product-slots.js` (one disposable test maker per run, `+slot_test_` email pattern, fully cleaned up — including from the underlying `subscriptions`/`entitlements`/`products` tables — via `auth.users` cascade after each run). 22/22 checks passed:
+
+- Free maker: limit is 1; first product succeeds; a second (draft) is rejected at the limit; archiving the first frees a slot for a new one.
+- Pro active: limit becomes 3; up to 3 active (draft+published) products succeed; a 4th is rejected.
+- Replaying the identical `apply_subscription_event` call (same `provider_subscription_id` + `current_period_start`) is a no-op — no duplicate `pro_access`/`product_slots` rows.
+- `cancel_at_period_end`: limit stays at 3 immediately after a scheduled cancellation, and only falls back to 1 once the period *genuinely* elapses (tested with real time passing, not a manually-edited row) — the specific ordering concern raised was that an expired `value=3` grant must never keep granting 3, and that an older expired grant can't resurrect itself after a newer one also expires; both confirmed directly, including inspecting the raw (still-present, both-expired) entitlement rows afterward.
+- The 3 products published while Pro remain untouched after the downgrade — no retroactive archiving.
+- Concurrency: 5 simultaneous inserts against exactly 1 free slot (Pro, limit 3, 2 already active) — exactly 1 succeeded, confirming the `pg_advisory_xact_lock`-based trigger actually serializes concurrent submissions rather than just looking correct on paper.
+
+One real finding from this pass, since fixed in the verification script itself (not the migration): `subscriptions_single_active_idx` (pre-existing, from 0013) correctly rejects a second `status='active'` subscription row for the same maker if a prior one was never transitioned out of `active` first — the first version of the test script tried to activate a third fake subscription without ending the second one, got a silently-unchecked 409, and that surfaced as a confusing "wrong limit" result until the grant call's own status was asserted directly. Real Polar traffic doesn't hit this (a renewal reuses the same `provider_subscription_id`; a genuinely new subscription implies the old one was already canceled/revoked), but it's a good example of why this needed a live pass rather than being assumed correct from the SQL alone.
+
+**Status:** resolved — `0017_product_slots.sql` is live, verified, and `scripts/dev-verify-product-slots.js` is committed for future re-verification.
+
 **Reset, as the last step before going live** (after production webhook credentials are confirmed live and no further sandbox testing will happen):
 ```sql
 delete from public.entitlements;

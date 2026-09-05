@@ -129,11 +129,10 @@ export async function POST(request: Request) {
         // field, only subtotal/discount/net/tax/total/applied/due/
         // refunded variants; totalAmount is the actual charge amount, in
         // the smallest currency unit already, per the SDK's z.int() schema).
-        // Period fields taken from the nested OrderSubscription (order.
-        // subscription.currentPeriodStart/End) when present - avoids a
-        // second round-trip and sidesteps the ordering race for the
-        // period values specifically, even when it can't be avoided for
-        // resolving our own internal subscription row id above.
+        // No period fields here any more - apply_order_paid only records
+        // the payment now; product_slots/pro_access are both granted from
+        // subscription.active via apply_subscription_event instead (see
+        // 0017_product_slots.sql).
         const { error } = await admin.rpc("apply_order_paid", {
           p_maker_id: makerId,
           p_subscription_id: subscriptionRow?.id ?? null,
@@ -141,8 +140,6 @@ export async function POST(request: Request) {
           p_amount_cents: order.totalAmount,
           p_currency: order.currency,
           p_webhook_event_id: eventRow.id,
-          p_period_start: order.subscription?.currentPeriodStart?.toISOString() ?? null,
-          p_period_end: order.subscription?.currentPeriodEnd?.toISOString() ?? null,
         });
         if (error) throw error;
         break;

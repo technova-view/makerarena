@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 const FREE_FEATURES = [
-  "Publish unlimited products",
+  "Publish 1 product",
   "Compete in the Arena",
   "Public maker profile & MakerRank",
   "Seasons, divisions & achievements",
@@ -15,9 +15,9 @@ const FREE_FEATURES = [
 
 const PRO_FEATURES = [
   "Everything in Free",
+  "Publish up to 3 products",
   "Advanced product analytics",
   "Profile customization",
-  "1 Featured credit every month",
 ];
 
 export default async function PricingPage() {
