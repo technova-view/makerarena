@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ProductGrid } from "@/components/products/product-grid";
@@ -139,10 +140,18 @@ export default async function MakerProfilePage({
             </span>
           )}
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <h1 className="truncate text-2xl font-bold">{maker.display_name}</h1>
           <p className="truncate text-muted-foreground">@{maker.username}</p>
         </div>
+        {isOwnProfile && (
+          <Link
+            href="/settings/profile"
+            className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg border border-border px-3 text-sm font-medium hover:bg-muted"
+          >
+            Edit profile
+          </Link>
+        )}
       </div>
 
       {maker.bio && <p className="mt-4 text-sm leading-relaxed">{maker.bio}</p>}
